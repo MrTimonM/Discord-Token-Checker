@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conceptual Discord Manager</title>
+    <style>
+        /* CSS Variables for theming - provides a Discord-like dark theme */
+        :root {
+            --background-primary: #36393f; /* Main background color */
+            --background-secondary: #2f3136; /* Slightly lighter background for elements like containers */
+            --background-tertiary: #202225; /* Even darker, often for inputs or specific interactive areas */
+            --channeltextarea-background: #40444b; /* Background for the message input area */
+            --text-normal: #dcddde; /* Standard text color */
+            --text-muted: #72767d; /* Muted text, used for timestamps, placeholders, etc. */
+            --text-link: #00b0f4; /* Color for links */
+            --header-primary: #ffffff; /* Primary header text color (e.g., main titles) */
+            --header-secondary: #b9bbbe; /* Secondary header/label text color */
+            --button-primary-background: #5865f2; /* Primary button color (Discord's "blurple") */
+            --button-primary-hover-background: #4752c4; /* Hover state for the primary button */
+            --input-background: #202225; /* Background color for input fields */
+            --input-border: rgba(0,0,0,0.3); /* Border color for input fields */
+            --error-color: #f04747; /* Color for error messages and borders */
+            --success-color: #43b581; /* Color for success indications (not used much in this version) */
+            --warning-color: #faa61a; /* Color for warning indications (e.g., ToS banner) */
+            --avatar-size: 40px; /* Standard size for user avatars in messages */
+            --message-hover-background: #32353b; /* Background color of a message when hovered */
+        }
+
+        /* General body styling */
+        body {
+            font-family: 'Whitney', 'Helvetica Neue', Helvetica, Arial, sans-serif; /* Discord's primary font stack */
+            margin: 0; /* Remove default body margin */
+            background-color: var(--background-primary); /* Apply main background color */
+            color: var(--text-normal); /* Set default text color */
+            font-size: 16px; /* Base font size */
+            line-height: 1.5; /* Standard line height for readability */
+        }
+
+        /* Main container for the application content */
+        .container {
+            max-width: 900px; /* Constrain the width of the content area */
+            margin: 20px auto; /* Center the container on the page */
+            padding: 20px; /* Padding inside the container */
+            background-color: var(--background-secondary); /* Use secondary background for the container */
+            border-radius: 8px; /* Rounded corners for the container */
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2); /* Subtle shadow for a "raised" effect */
+        }
+
+        /* Styling for headings (h1, h2, h3) */
+        h1, h2, h3 {
+            color: var(--header-primary); /* Use primary header color for main titles */
+            margin-top: 0; /* Remove default top margin from headings */
+        }
+        h2 { color: var(--header-secondary); border-bottom: 1px solid var(--background-tertiary); padding-bottom: 10px; margin-bottom: 20px;} /* Sub-headings */
+        h3 { color: var(--header-secondary); margin-bottom: 10px;} /* Smaller headings, e.g., "Chat" */
+
+        /* Styling for the account slot (though only one is used in this conceptual version) */
+        .account-slot {
+            background-color: var(--background-secondary); /* Match container background */
+            padding: 20px; /* Inner padding */
+            border: 1px solid var(--background-tertiary); /* Subtle border */
+            border-radius: 5px; /* Rounded corners */
+            margin-bottom: 20px; /* Space below the slot */
+        }
+
+        /* Styling for labels above input fields */
+        label {
+            display: block; /* Make labels take full width */
+            color: var(--header-secondary); /* Use secondary header color for labels */
+            margin-top: 15px; /* Space above labels */
+            margin-bottom: 5px; /* Space below labels */
+            font-size: 0.9em; /* Slightly smaller font size for labels */
+            font-weight: 500; /* Medium font weight */
+        }
+
+        /* Styling for text and password input fields */
+        input[type="text"],
+        input[type="password"] {
+            width: 100%; /* Make inputs take full width of their container */
+            padding: 10px; /* Padding inside inputs */
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+            margin-bottom: 15px; /* Space below inputs */
+            background-color: var(--input-background); /* Use specific input background color */
+            border: 1px solid var(--input-border); /* Border for inputs */
+            border-radius: 3px; /* Slightly rounded corners for inputs */
+            color: var(--text-normal); /* Text color inside inputs */
+            font-size: 1em; /* Standard font size for input text */
+        }
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            border-color: var(--text-link); /* Highlight border on focus (e.g., with link color) */
+            outline: none; /* Remove default browser outline on focus */
+        }
+
+        /* General button styling */
+        button {
+            padding: 10px 15px; /* Padding inside buttons */
+            background-color: var(--button-primary-background); /* Use primary button background color */
+            color: white; /* Text color for buttons */
+            border: none; /* No border for buttons */
+            border-radius: 3px; /* Slightly rounded corners for buttons */
+            cursor: pointer; /* Pointer cursor on hover */
+            font-size: 1em; /* Standard font size for button text */
+            transition: background-color 0.2s ease; /* Smooth transition for hover effect */
+        }
+        button:hover {
+            background-color: var(--button-primary-hover-background); /* Darken button on hover */
+        }
+        button:disabled {
+            background-color: var(--text-muted); /* Greyed out appearance when disabled */
+            cursor: not-allowed; /* Not-allowed cursor when disabled */
+        }
+
+        /* User information display area (avatar and username) */
+        .user-info {
+            display: flex; /* Align avatar and username horizontally */
+            align-items: center; /* Vertically center items within the flex container */
+            padding: 10px; /* Padding around user info */
+            background-color: var(--background-tertiary); /* Use tertiary background for this section */
+            border-radius: 5px; /* Rounded corners */
+            margin-top: 15px; /* Space above user info section */
+        }
+        .user-info img { /* Styling for the avatar image */
+            width: var(--avatar-size); /* Use avatar size variable */
+            height: var(--avatar-size); /* Use avatar size variable */
+            border-radius: 50%; /* Circular avatars */
+            margin-right: 15px; /* Space between avatar and username */
+            border: 2px solid var(--background-primary); /* Small border around avatar, matching main background */
+        }
+        .user-info span { /* Styling for the username text */
+            font-weight: 500; /* Medium font weight */
+            color: var(--header-primary); /* Use primary header color for username */
+        }
+
+        /* Chat messages display area */
+        .chat-area {
+            height: 350px; /* Fixed height for the chat area, making it scrollable */
+            background-color: var(--background-tertiary); /* Use tertiary background for chat area */
+            border: 1px solid var(--input-border); /* Border similar to inputs */
+            border-radius: 5px; /* Rounded corners */
+            overflow-y: auto; /* Enable vertical scrolling when content exceeds height */
+            padding: 15px; /* Padding inside the chat area */
+            margin-bottom: 15px; /* Space below chat area */
+            display: flex; /* Use flexbox for layout */
+            flex-direction: column-reverse; /* Newest messages appear at the bottom, and scroll starts at bottom */
+        }
+        /* Inner container for messages. This allows proper ordering when chat-area uses column-reverse. */
+        .chat-area-inner {
+            display: flex;
+            flex-direction: column; /* Messages stack vertically inside this inner container */
+        }
+
+        /* Individual message styling within the chat area */
+        .message {
+            display: flex; /* Align avatar and message content horizontally */
+            margin-bottom: 12px; /* Space between messages */
+            padding: 8px 10px; /* Padding inside each message bubble */
+            border-radius: 5px; /* Rounded corners for message bubbles */
+            line-height: 1.4; /* Line height for message text */
+        }
+        .message:hover {
+            background-color: var(--message-hover-background); /* Highlight message on hover */
+        }
+        .message .avatar { /* Avatar within a message */
+            width: var(--avatar-size);
+            height: var(--avatar-size);
+            border-radius: 50%; /* Circular avatar */
+            margin-right: 10px; /* Space between avatar and message content */
+            flex-shrink: 0; /* Prevent avatar from shrinking if message content is long */
+        }
+        .message-content-wrapper { /* Wrapper for author/timestamp and message text */
+            display: flex;
+            flex-direction: column; /* Stack author/timestamp above the actual message content */
+        }
+        .message .author { /* Author's name and timestamp line */
+            font-weight: 500; /* Medium font weight for author */
+            color: var(--header-primary); /* Primary header color for author name */
+            font-size: 0.95em; /* Slightly smaller font for author line */
+        }
+        .message .author .username { /* Username part of the author line */
+             margin-right: 8px; /* Space between username and timestamp */
+        }
+        .message .author .timestamp { /* Timestamp part of the author line */
+            font-size: 0.75em; /* Smaller font for timestamp */
+            color: var(--text-muted); /* Muted color for timestamp */
+            font-weight: 400; /* Normal font weight for timestamp */
+        }
+        .message .content { /* Actual message text content */
+            color: var(--text-normal); /* Standard text color */
+            word-wrap: break-word; /* Wrap long words to prevent overflow */
+            white-space: pre-wrap; /* Respect newlines and multiple spaces in message content */
+        }
+        /* Reply button, shown on message hover */
+        .message .reply-button {
+            font-size: 0.75em; /* Smaller font for reply button */
+            margin-left: 10px; /* Space to its left */
+            color: var(--text-link); /* Link color for reply button */
+            cursor: pointer; /* Pointer cursor */
+            visibility: hidden; /* Hidden by default */
+        }
+        .message:hover .reply-button {
+            visibility: visible; /* Show reply button on message hover */
+        }
+
+        /* Message input area at the bottom of the chat */
+        .message-input {
+            display: flex; /* Align input field and send button horizontally */
+            background-color: var(--channeltextarea-background); /* Specific background for input area */
+            border-radius: 5px; /* Rounded corners */
+            padding: 10px; /* Padding within the input area */
+        }
+        .message-input input[type="text"] { /* Text input field for messages */
+            flex-grow: 1; /* Input field takes available horizontal space */
+            margin-bottom: 0; /* Remove default margin from input if any */
+            margin-right: 10px; /* Space between input field and send button */
+            background-color: var(--channeltextarea-background); /* Match parent background */
+            border: none; /* No border if inside a styled container like this */
+        }
+        .message-input button { /* Send button */
+            flex-shrink: 0; /* Prevent send button from shrinking */
+        }
+
+        /* Error feedback styling (for API errors, validation errors, etc.) */
+        .error-feedback {
+            color: var(--error-color); /* Error text color */
+            background-color: rgba(240, 71, 71, 0.1); /* Light red background tint for error messages */
+            border: 1px solid var(--error-color); /* Error color border */
+            padding: 10px; /* Padding inside error message box */
+            border-radius: 3px; /* Rounded corners */
+            margin-top: 15px; /* Space above error message box */
+        }
+        /* Warning feedback styling (used for the ToS/security warning) */
+        .warning-feedback {
+            color: #000; /* Darker text for better readability on a yellow background */
+            background-color: var(--warning-color); /* Warning color background */
+            /* The 'darken' function is conceptual for CSS; actual implementation would be a pre-calculated darker hex or rgba value */
+            border: 1px solid #d9900a; /* Example: A pre-calculated darker shade of --warning-color */
+            padding: 10px; /* Padding inside warning message box */
+            border-radius: 3px; /* Rounded corners */
+            margin-top: 15px; /* Space above warning message box */
+        }
+        /* Reply context display (shows which message is currently being replied to) */
+        .reply-context {
+            font-size: 0.85em; /* Smaller font for reply context info */
+            color: var(--text-muted); /* Muted text color */
+            margin: -5px 0 10px 10px; /* Position it neatly below message input, slightly indented */
+            padding: 5px; /* Padding inside the reply context box */
+            background-color: var(--background-tertiary); /* Use tertiary background */
+            border-radius: 3px; /* Rounded corners */
+            display: inline-block; /* Allow it to sit naturally with other elements if needed, not full width */
+        }
+        .reply-context .cancel-reply { /* "Cancel reply" (×) button */
+            margin-left: 8px; /* Space to its left */
+            color: var(--text-link); /* Link color */
+            cursor: pointer; /* Pointer cursor */
+            font-weight: bold; /* Make the '×' bold */
+        }
+
+    </style>
+</head>
+<body>
+    <!-- Main application container -->
+    <div class="container">
+        <h1>Conceptual Discord Manager (Single Account)</h1>
+        <!-- Security and Terms of Service Warning -->
+        <div class="warning-feedback">
+            <strong>Warning:</strong> For conceptual and educational purposes only. Using user tokens for automation is against Discord's ToS and highly insecure. This interface does NOT store your token.
+        </div>
+
+        <!-- Account Slot (only one is implemented for this conceptual version) -->
+        <div class="account-slot" id="account-1">
+            <h2>Account Slot 1</h2>
+
+            <!-- Token Input Field -->
+            <div>
+                <label for="token-input-1">Discord User Token:</label>
+                <input type="password" id="token-input-1" placeholder="Enter your Discord User Token (ephemeral)">
+            </div>
+
+            <!-- Channel ID Input Field -->
+            <div>
+                <label for="channel-id-input-1">Channel ID (for messages):</label>
+                <input type="text" id="channel-id-input-1" placeholder="Enter Channel ID">
+            </div>
+
+            <!-- Connect Button -->
+            <button id="connect-btn-1">Connect & Load Messages</button>
+
+            <!-- User Info Display Area (hidden until connected) -->
+            <div class="user-info" id="user-info-1" style="margin-top: 20px; display: none;">
+                <img id="avatar-1" src="" alt="Avatar"> <!-- User avatar -->
+                <span id="username-1"></span> <!-- Username#discriminator -->
+            </div>
+
+            <hr style="margin: 25px 0; border-color: var(--background-tertiary);"> <!-- Visual separator -->
+
+            <!-- Chat Area -->
+            <h3>Chat</h3>
+            <div class="chat-area" id="chat-area-1">
+                 <div class="chat-area-inner" id="chat-area-inner-1">
+                    <!-- Messages will be dynamically inserted here by JavaScript -->
+                    <p style="color: var(--text-muted); text-align: center; margin-top: 20px;">Messages will load here once connected and a channel ID is provided.</p>
+                 </div>
+            </div>
+            <!-- Reply Context Display (hidden until a reply is initiated) -->
+             <div id="reply-info-1" class="reply-context" style="display: none;">
+                Replying to <strong id="reply-user-1">User</strong>: "<em id="reply-preview-1">message...</em>"
+                <span class="cancel-reply" id="cancel-reply-1" title="Cancel reply">×</span> <!-- Cancel reply button -->
+            </div>
+            <!-- Message Input and Send Button -->
+            <div class="message-input">
+                <input type="text" id="message-text-1" placeholder="Type a message...">
+                <button id="send-btn-1" disabled>Send</button> <!-- Send button is disabled by default -->
+            </div>
+
+            <!-- Error Feedback Area (hidden until an error occurs) -->
+            <div class="error-feedback" id="error-feedback-1" style="display: none;">
+                <!-- Error messages will be displayed here by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION CONSTANTS ---
+        const DISCORD_API_BASE = 'https://discord.com/api/v10'; // Base URL for Discord API v10
+        const MAX_MESSAGES_DISPLAYED = 50; // Maximum number of messages to fetch and display in the chat window
+
+        // --- APPLICATION STATE VARIABLES ---
+        let currentToken = null; // Stores the validated Discord user token once connected
+        let currentChannelId = null; // Stores the ID of the currently active channel for sending/receiving messages
+        let replyingToMessage = null; // Object to store info about the message being replied to: { id, authorUsername, authorDiscriminator, content }
+
+        // --- DOM ELEMENT REFERENCES ---
+        // Get references to various HTML elements to interact with them in JavaScript
+
+        // Inputs and Buttons:
+        const tokenInput = document.getElementById('token-input-1');
+        const channelIdInput = document.getElementById('channel-id-input-1');
+        const connectBtn = document.getElementById('connect-btn-1');
+        const messageInput = document.getElementById('message-text-1'); // Text input for typing messages
+        const sendBtn = document.getElementById('send-btn-1'); // Button to send messages
+
+        // Display Areas:
+        const userInfoDiv = document.getElementById('user-info-1'); // Div to show connected user's info
+        const avatarImg = document.getElementById('avatar-1'); // Img tag for user's avatar
+        const usernameSpan = document.getElementById('username-1'); // Span for user's name
+        const chatAreaInner = document.getElementById('chat-area-inner-1'); // Inner div where individual message elements are appended
+        const chatArea = document.getElementById('chat-area-1'); // Outer scrollable div for the chat messages
+
+        // Feedback and Reply Context Elements:
+        const errorFeedbackDiv = document.getElementById('error-feedback-1'); // Div to display error messages
+        const warningDiv = document.querySelector('.warning-feedback'); // The ToS/security warning banner
+        const replyInfoDiv = document.getElementById('reply-info-1'); // Div that shows "Replying to X..."
+        const replyUserSpan = document.getElementById('reply-user-1'); // Span within replyInfoDiv for the username being replied to
+        const replyPreviewSpan = document.getElementById('reply-preview-1'); // Span for a preview of the message being replied to
+        const cancelReplyBtn = document.getElementById('cancel-reply-1'); // Button (×) to cancel the current reply action
+
+        // --- UTILITY FUNCTIONS ---
+
+        /**
+         * Displays an error message in the designated error feedback area on the page.
+         * Also logs the error to the browser console for debugging.
+         * @param {string} message - The error message to display.
+         */
+        function displayError(message) {
+            errorFeedbackDiv.textContent = message; // Set the text of the error div
+            errorFeedbackDiv.style.display = 'block'; // Make the error div visible
+            console.error("Error:", message); // Log to console
+        }
+
+        /**
+         * Clears any currently displayed error message from the error feedback area.
+         */
+        function clearError() {
+            errorFeedbackDiv.textContent = ''; // Clear text content
+            errorFeedbackDiv.style.display = 'none'; // Hide the error div
+        }
+
+        /**
+         * Basic HTML sanitizer. Converts text to textContent of a temporary div, then reads its innerHTML.
+         * This helps prevent XSS by escaping HTML special characters.
+         * @param {string} text - The text to sanitize.
+         * @returns {string} Sanitized HTML string. Returns empty string if input is null/undefined.
+         */
+        function sanitizeHTML(text) {
+            if (text === null || typeof text === 'undefined') return ''; // Handle null or undefined input gracefully
+            const temp = document.createElement('div');
+            temp.textContent = text; // Assigning to textContent performs sanitization
+            return temp.innerHTML; // Retrieve the sanitized HTML
+        }
+
+        /**
+         * Formats an ISO 8601 timestamp string into a more readable locale-specific time string (e.g., "10:30 AM").
+         * @param {string} isoTimestamp - The ISO 8601 timestamp string (e.g., "2023-10-27T10:30:00.000Z").
+         * @returns {string} Formatted time string, or 'Invalid Date' if formatting fails.
+         */
+        function formatTimestamp(isoTimestamp) {
+            if (!isoTimestamp) return ''; // Return empty if no timestamp provided
+            try {
+                const date = new Date(isoTimestamp);
+                // Use browser's locale for time formatting (hours and minutes)
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                console.error("Error formatting timestamp:", e); // Log error if parsing fails
+                return 'Invalid Date';
+            }
+        }
+
+        /**
+         * Scrolls the chat area to the bottom to show the most recent messages.
+         * Since the chat area uses `flex-direction: column-reverse`, setting `scrollTop` to 0 effectively
+         * scrolls to what is visually the bottom of the content flow.
+         */
+        function scrollChatToBottom() {
+            chatArea.scrollTop = 0;
+        }
+
+        // --- DISCORD API INTERACTION ---
+
+        /**
+         * Makes a generic asynchronous call to the Discord API using fetch.
+         * Handles common headers (Authorization, Content-Type), request body, and error responses.
+         * @param {string} endpoint - The API endpoint path (e.g., '/users/@me').
+         * @param {string} [method='GET'] - The HTTP method (GET, POST, PUT, PATCH, DELETE).
+         * @param {string} token - The Discord user token for authorization.
+         * @param {object|null} [body=null] - The request body for methods like POST, PUT, PATCH.
+         * @returns {Promise<object|null>} A promise that resolves with the JSON response from the API, or null for 204 No Content.
+         * @throws {Error} If the API call fails, returns an error status, or if network issues occur.
+         */
+        async function discordApiCall(endpoint, method = 'GET', token, body = null) {
+            clearError(); // Clear any previous error messages from the UI
+
+            const headers = {
+                'Authorization': token, // Add the user token to the Authorization header
+            };
+            // Content-Type header is only needed for requests that send a body (e.g., POST, PUT).
+            if (body) {
+                 headers['Content-Type'] = 'application/json';
+            }
+
+            const options = {
+                method: method,
+                headers: headers,
+            };
+
+            // If a body is provided and the method supports it, stringify and add it to options.
+            if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+                options.body = JSON.stringify(body);
+            }
+
+            try {
+                const response = await fetch(`${DISCORD_API_BASE}${endpoint}`, options);
+
+                // Check if the response status indicates an error (not in the 200-299 range).
+                if (!response.ok) {
+                    let errorData;
+                    try {
+                        errorData = await response.json(); // Try to parse error details from the API response body.
+                    } catch (e) {
+                        // If parsing the error JSON fails, create a generic error object.
+                        errorData = { message: `API request failed with status ${response.status}. Unable to parse error response body.` };
+                    }
+                    // Construct a comprehensive error message.
+                    let errorMessage = `API Error: ${response.status} ${response.statusText}. `;
+                    if (errorData && errorData.message) {
+                        errorMessage += `Details: ${errorData.message}`;
+                        if (errorData.code) { // Discord often includes a specific error code.
+                            errorMessage += ` (Code: ${errorData.code})`;
+                        }
+                        if (errorData.errors) { // For validation errors, Discord might provide details on specific fields.
+                             errorMessage += ` Specifics: ${JSON.stringify(errorData.errors)}`;
+                        }
+                    } else if (response.status === 401) { // Unauthorized (e.g., bad token)
+                        errorMessage += "Invalid token. Please check your token and try again.";
+                    } else if (response.status === 403) { // Forbidden (e.g., missing permissions)
+                        errorMessage += "Missing permissions for this action, or the token is invalid/revoked.";
+                    } else if (response.status === 429) { // Rate limited
+                        errorMessage += "You are being rate limited by Discord. Please wait a moment and try again.";
+                    }
+                    throw new Error(errorMessage); // Throw the constructed error message.
+                }
+
+                // Handle 204 No Content responses (common for successful actions like DELETE, or sometimes POSTs that don't return data).
+                if (response.status === 204) {
+                    return null; // Return null as there's no JSON body to parse.
+                }
+                return await response.json(); // Parse and return the successful JSON response.
+            } catch (error) {
+                displayError(error.message); // Display the error in the UI.
+                throw error; // Re-throw the error so the calling function can also handle it if needed.
+            }
+        }
+
+        // --- CORE APPLICATION LOGIC ---
+
+        /**
+         * Validates the provided Discord token by attempting to fetch the current user's data (@me endpoint).
+         * If successful, updates the UI with the user's avatar and username.
+         * @param {string} token - The Discord user token to validate.
+         * @returns {Promise<boolean>} A promise that resolves to true if the token is valid and user data is fetched, false otherwise.
+         */
+        async function validateTokenAndFetchUser(token) {
+            if (!token) { // Basic check for empty token
+                displayError("Token cannot be empty.");
+                return false;
+            }
+            try {
+                const userData = await discordApiCall('/users/@me', 'GET', token); // Fetch user data
+                if (userData && userData.id) { // Check if valid user data was returned
+                    // Construct avatar URL. Use default Discord avatar if user has none.
+                    const avatarURL = userData.avatar
+                        ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png?size=64`
+                        : `https://cdn.discordapp.com/embed/avatars/${parseInt(userData.discriminator) % 5}.png`; // Default avatar based on discriminator
+                    avatarImg.src = avatarURL;
+                    usernameSpan.textContent = `${userData.username}#${userData.discriminator}`; // Display username#discriminator
+
+                    userInfoDiv.style.display = 'flex'; // Show the user info section
+                    avatarImg.style.display = 'inline-block'; // Ensure avatar image is visible
+
+                    currentToken = token; // Store the validated token globally for subsequent API calls
+                    sendBtn.disabled = false; // Enable the message send button
+                    clearError(); // Clear any previous error messages
+                    return true; // Token validation successful
+                }
+            } catch (error) {
+                // Error message is already displayed by `discordApiCall`
+                userInfoDiv.style.display = 'none'; // Hide user info section on failure
+                avatarImg.style.display = 'none';
+                usernameSpan.textContent = 'Connection Failed'; // Update status text
+                sendBtn.disabled = true; // Keep send button disabled
+                return false; // Token validation failed
+            }
+            // Fallback error if userData is not as expected (should be rare if API call is successful)
+            displayError("Failed to validate token: Unexpected response from API.");
+            return false;
+        }
+
+        /**
+         * Creates an HTML element representing a single chat message.
+         * Includes avatar, author, timestamp, content, attachments, embeds, and a reply button.
+         * @param {object} msg - The Discord message object received from the API.
+         * @returns {HTMLElement} The created HTML div element for the message.
+         */
+        function createMessageElement(msg) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.dataset.messageId = msg.id; // Store message ID on the element for potential future interactions
+
+            // Avatar Element
+            const avatarElement = document.createElement('img');
+            avatarElement.classList.add('avatar');
+            const author = msg.author;
+            const authorAvatarURL = author.avatar
+                ? `https://cdn.discordapp.com/avatars/${author.id}/${author.avatar}.png?size=64`
+                : `https://cdn.discordapp.com/embed/avatars/${parseInt(author.discriminator) % 5}.png`;
+            avatarElement.src = authorAvatarURL;
+            avatarElement.alt = author.username.substring(0,1); // Fallback alt text (first letter of username)
+
+            // Wrapper for Message Content (author line, actual content, embeds, attachments)
+            const contentWrapper = document.createElement('div');
+            contentWrapper.classList.add('message-content-wrapper');
+
+            // Author & Timestamp Line
+            const authorSpan = document.createElement('span');
+            authorSpan.classList.add('author');
+            const usernameStrong = document.createElement('strong');
+            usernameStrong.classList.add('username');
+            usernameStrong.textContent = sanitizeHTML(author.username); // Sanitize username
+            authorSpan.appendChild(usernameStrong);
+            const timestampSpan = document.createElement('span');
+            timestampSpan.classList.add('timestamp');
+            timestampSpan.textContent = formatTimestamp(msg.timestamp); // Format timestamp
+            authorSpan.appendChild(timestampSpan);
+
+            // Reply Button (appears on hover)
+            const replyButton = document.createElement('span');
+            replyButton.classList.add('reply-button');
+            replyButton.textContent = 'Reply';
+            replyButton.title = 'Reply to this message';
+            replyButton.onclick = (e) => {
+                e.stopPropagation(); // Prevent click from bubbling up if message itself has a listener
+                // Set the global state for replying to this message
+                replyingToMessage = {
+                    id: msg.id,
+                    authorUsername: author.username,
+                    authorDiscriminator: author.discriminator,
+                    content: msg.content // Store original content for context if needed
+                };
+                // Update the UI to show "Replying to User: message preview..."
+                replyUserSpan.textContent = `${author.username}#${author.discriminator}`;
+                const previewText = msg.content ||
+                                  (msg.attachments && msg.attachments.length > 0 ? '[Attachment]' :
+                                  (msg.embeds && msg.embeds.length > 0 ? '[Embed]' : '[Empty Message]'));
+                replyPreviewSpan.textContent = previewText.substring(0, 50) + (previewText.length > 50 ? '...' : '');
+                replyInfoDiv.style.display = 'inline-block'; // Show the reply context UI element
+                messageInput.focus(); // Automatically focus the message input field
+            };
+            authorSpan.appendChild(replyButton);
+            contentWrapper.appendChild(authorSpan); // Add author line to content wrapper
+
+            // Display "Replying to X: ..." if this message is a reply to another message
+            if (msg.referenced_message) {
+                const repliedMsg = msg.referenced_message; // The message being referenced
+                const replyContextDiv = document.createElement('div'); // Create a small div for this context
+                // Basic styling for the reply context line
+                replyContextDiv.style.fontSize = '0.8em';
+                replyContextDiv.style.color = 'var(--text-muted)';
+                replyContextDiv.style.marginBottom = '4px';
+                replyContextDiv.style.borderLeft = '2px solid var(--text-muted)'; // "Quote" line
+                replyContextDiv.style.paddingLeft = '8px';
+
+                const repliedAuthorStrong = document.createElement('strong');
+                repliedAuthorStrong.textContent = sanitizeHTML(repliedMsg.author.username);
+                replyContextDiv.appendChild(repliedAuthorStrong);
+
+                // Create a short preview of the replied-to message's content
+                const repliedContentPreview = repliedMsg.content
+                    ? (repliedMsg.content.substring(0, 70) + (repliedMsg.content.length > 70 ? '...' : ''))
+                    : (repliedMsg.attachments && repliedMsg.attachments.length > 0 ? '[Attachment]'
+                    : (repliedMsg.embeds && repliedMsg.embeds.length > 0 ? '[Embed]' : '[Original message had no text]'));
+                replyContextDiv.append(`: ${sanitizeHTML(repliedContentPreview)}`);
+                contentWrapper.appendChild(replyContextDiv); // Add this before the main content of the current message
+            }
+
+            // Main Message Content Paragraph
+            const contentP = document.createElement('p');
+            contentP.classList.add('content');
+            contentP.innerHTML = sanitizeHTML(msg.content); // Sanitize and set the main message text
+
+            // Display Attachments (Basic: Images are previewed, others are linked)
+            if (msg.attachments && msg.attachments.length > 0) {
+                msg.attachments.forEach(att => {
+                    const attachmentDiv = document.createElement('div');
+                    attachmentDiv.style.marginTop = "5px"; // Space above attachment
+                    if (att.content_type && att.content_type.startsWith('image/')) { // If attachment is an image
+                        const img = document.createElement('img');
+                        img.src = att.proxy_url || att.url; // Use proxy_url for potentially cached/resized version
+                        img.alt = att.filename || 'Attached Image';
+                        // Style for image preview
+                        img.style.maxWidth = '300px';
+                        img.style.maxHeight = '250px';
+                        img.style.borderRadius = '3px';
+                        img.style.cursor = 'pointer'; // Indicate it's clickable
+                        img.onclick = () => window.open(att.url, '_blank'); // Open full image in new tab
+                        attachmentDiv.appendChild(img);
+                    } else { // For non-image attachments, provide a link
+                        const attachmentLink = document.createElement('a');
+                        attachmentLink.href = att.url;
+                        attachmentLink.textContent = `[${att.filename || 'Attachment'}] (${Math.round(att.size/1024)}KB)`; // Show filename and size
+                        attachmentLink.target = '_blank'; // Open in new tab
+                        attachmentDiv.appendChild(attachmentLink);
+                    }
+                    contentP.appendChild(attachmentDiv); // Append attachment display to content paragraph
+                });
+            }
+
+            // Display Embeds (Basic handling for 'rich' type embeds like links with previews)
+            if (msg.embeds && msg.embeds.length > 0) {
+                msg.embeds.forEach(embed => {
+                    // Only process 'rich' embeds which are the most common user-shareable ones (e.g. link previews)
+                    if (embed.type === 'rich' && (embed.title || embed.description)) {
+                        const embedDiv = document.createElement('div');
+                        // Style the embed box, using embed's color if provided
+                        embedDiv.style.borderLeft = `3px solid #${(embed.color || 0x7289DA).toString(16).padStart(6, '0')}`; // Default to Discord blurple
+                        embedDiv.style.backgroundColor = 'rgba(0,0,0,0.1)'; // Slight background tint for the embed box
+                        embedDiv.style.padding = '8px';
+                        embedDiv.style.marginTop = '5px';
+                        embedDiv.style.borderRadius = '3px';
+
+                        if (embed.author && embed.author.name) { // Display embed author if present
+                            const embedAuthor = document.createElement('div');
+                            embedAuthor.textContent = sanitizeHTML(embed.author.name);
+                            embedAuthor.style.fontSize = '0.8em';
+                            embedAuthor.style.fontWeight = 'bold';
+                            embedDiv.appendChild(embedAuthor);
+                        }
+                        if (embed.title) { // Display embed title
+                            const embedTitle = document.createElement('strong');
+                            if (embed.url) { // If title is a link, make it clickable
+                                const embedTitleLink = document.createElement('a');
+                                embedTitleLink.href = embed.url;
+                                embedTitleLink.target = '_blank';
+                                embedTitleLink.textContent = sanitizeHTML(embed.title);
+                                embedTitleLink.style.color = 'var(--text-link)'; // Use link color
+                                embedTitle.appendChild(embedTitleLink);
+                            } else {
+                                embedTitle.textContent = sanitizeHTML(embed.title);
+                            }
+                            embedDiv.appendChild(embedTitle);
+                        }
+                        if (embed.description) { // Display embed description (truncated)
+                            const embedDesc = document.createElement('p');
+                            embedDesc.textContent = sanitizeHTML(embed.description.substring(0, 250) + (embed.description.length > 250 ? '...' : ''));
+                            embedDesc.style.fontSize = '0.9em';
+                            embedDesc.style.margin = '5px 0 0 0';
+                            embedDiv.appendChild(embedDesc);
+                        }
+                        if (embed.thumbnail && embed.thumbnail.proxy_url) { // Display thumbnail if available
+                             const thumb = document.createElement('img');
+                             thumb.src = embed.thumbnail.proxy_url;
+                             // Style for thumbnail
+                             thumb.style.maxWidth = '80px';
+                             thumb.style.maxHeight = '80px';
+                             thumb.style.float = 'right'; // Float thumbnail to the right of text
+                             thumb.style.marginLeft = '10px';
+                             thumb.style.borderRadius = '3px';
+                             embedDiv.appendChild(thumb);
+                        }
+                        contentP.appendChild(embedDiv); // Append embed display to content paragraph
+                    }
+                });
+            }
+
+            // Assemble the final message element structure
+            contentWrapper.appendChild(contentP); // Add content paragraph to wrapper
+            messageDiv.appendChild(avatarElement); // Add avatar to message div
+            messageDiv.appendChild(contentWrapper); // Add content wrapper to message div
+            return messageDiv;
+        }
+
+        /**
+         * Fetches recent messages for a given channel ID using the provided token and updates the chat area.
+         * @param {string} channelId - The ID of the channel to fetch messages from.
+         * @param {string} token - The Discord user token for authorization.
+         * @returns {Promise<boolean>} A promise that resolves to true if messages are fetched and displayed successfully, false otherwise.
+         */
+        async function fetchMessages(channelId, token) {
+            if (!channelId) { // Validate channelId presence
+                displayError("Channel ID cannot be empty for fetching messages.");
+                return false;
+            }
+            if (!token) { // Validate token presence
+                displayError("Token not set. Please connect before fetching messages.");
+                return false;
+            }
+            // Show a loading state in the chat area
+            chatAreaInner.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Loading messages...</p>';
+            try {
+                // Fetch messages from the API. Discord returns messages newest first.
+                const messages = await discordApiCall(`/channels/${channelId}/messages?limit=${MAX_MESSAGES_DISPLAYED}`, 'GET', token);
+                chatAreaInner.innerHTML = ''; // Clear loading/previous messages from the inner chat area
+
+                if (messages && messages.length > 0) {
+                    // Since chatArea is `flex-direction: column-reverse`, we append messages as they come from the API (newest first).
+                    // They will appear at the "bottom" of the visual flow (which is the top of the DOM for `column-reverse`).
+                    // The scrollbar will naturally be at the bottom (showing newest) due to this flex direction.
+                    messages.forEach(msg => {
+                        const msgElement = createMessageElement(msg); // Create HTML element for each message
+                        chatAreaInner.appendChild(msgElement); // Append to the inner chat area
+                    });
+                } else {
+                    // If no messages, or API returns empty array
+                    chatAreaInner.innerHTML = '<p style="color: var(--text-muted); text-align: center;">No messages found in this channel, or the channel is empty/inaccessible.</p>';
+                }
+                scrollChatToBottom(); // Ensure the view is scrolled to the newest messages
+                currentChannelId = channelId; // Store the currently active channel ID
+                return true; // Messages fetched successfully
+            } catch (error) {
+                // Error message is already displayed by `discordApiCall`
+                chatAreaInner.innerHTML = `<p style="color: var(--error-color); text-align: center;">Failed to load messages. Check console for more details.</p>`;
+                return false; // Message fetching failed
+            }
+        }
+
+        /**
+         * Sends a message to the specified channel using the provided token and message content.
+         * Handles replying to messages by including `message_reference` in the payload if `replyingToMessage` state is set.
+         * @param {string} channelId - The ID of the channel to send the message to.
+         * @param {string} token - The Discord user token for authorization.
+         * @param {string} messageContent - The text content of the message to send.
+         */
+        async function sendMessage(channelId, token, messageContent) {
+            // Basic validation: allow sending if there's content or if it's a reply (Discord allows replies with no new content).
+            if (!messageContent.trim() && !replyingToMessage) {
+                 // Optionally, you could enforce content here if not replying:
+                 // displayError("Message cannot be empty.");
+                 // return;
+            }
+            if (!token || !channelId) { // Ensure connection and channel ID are set
+                displayError("Not connected or channel ID not set. Cannot send message.");
+                return;
+            }
+
+            // Construct the payload for the Discord API
+            const payload = {
+                content: messageContent,
+                tts: false // Text-to-speech is generally false unless specifically enabled
+            };
+
+            // If `replyingToMessage` state is set, add the `message_reference` object to the payload
+            if (replyingToMessage && replyingToMessage.id) {
+                payload.message_reference = {
+                    message_id: replyingToMessage.id, // ID of the message being replied to
+                    channel_id: channelId, // ID of the channel where the original message exists (good practice to include)
+                    fail_if_not_exists: false // Best effort reply: send the message even if the original message being replied to is deleted
+                };
+            }
+
+            sendBtn.disabled = true; // Disable send button during the API call to prevent multiple submissions
+            try {
+                // User accounts (self-bots) sending messages via API might not get the full message object back immediately,
+                // unlike bot accounts. A 200 OK or 204 No Content is common.
+                // Therefore, we will re-fetch messages after a successful send to see the new message and its reply context.
+                await discordApiCall(`/channels/${channelId}/messages`, 'POST', token, payload);
+
+                // If the message was sent successfully (no error thrown by discordApiCall):
+                await fetchMessages(channelId, token); // Re-fetch messages to update the chat view
+                messageInput.value = ''; // Clear the message input field
+                clearReplyContext(); // Clear the reply state and UI
+
+            } catch (error) {
+                // Error message is already displayed by `discordApiCall`.
+                // The message input field is not cleared, so the user can retry sending if it was a temporary issue.
+            } finally {
+                sendBtn.disabled = false; // Re-enable the send button regardless of success or failure
+                messageInput.focus(); // Focus the message input field for the next message
+            }
+        }
+
+        /**
+         * Clears the current reply context, resetting both the `replyingToMessage` state variable and the UI elements.
+         */
+        function clearReplyContext() {
+            replyingToMessage = null; // Clear the state variable holding reply info
+            replyInfoDiv.style.display = 'none'; // Hide the "Replying to..." UI element
+            replyUserSpan.textContent = ''; // Clear the username in the reply context UI
+            replyPreviewSpan.textContent = ''; // Clear the message preview in the reply context UI
+        }
+
+        // --- EVENT LISTENERS ---
+        // Assign functions to be called when specific events occur on DOM elements.
+
+        // Event listener for the "Connect & Load Messages" button.
+        connectBtn.addEventListener('click', async () => {
+            clearError(); // Clear any previous errors
+            const token = tokenInput.value.trim(); // Get token from input, trim whitespace
+            const channelId = channelIdInput.value.trim(); // Get channel ID from input, trim whitespace
+
+            // Basic validation for token and channel ID presence
+            if (!token) {
+                displayError("Please enter a Discord User Token.");
+                return;
+            }
+             if (!channelId) {
+                displayError("Please enter a Channel ID.");
+                return;
+            }
+
+            // Disable inputs and button during the connection attempt to prevent concurrent actions
+            connectBtn.disabled = true;
+            connectBtn.textContent = "Connecting..."; // Provide feedback to user
+            tokenInput.disabled = true;
+            channelIdInput.disabled = true;
+
+            const userFetched = await validateTokenAndFetchUser(token); // Attempt to validate token and fetch user info
+            if (userFetched) {
+                // If user is fetched successfully, load messages for the specified channel
+                await fetchMessages(channelId, token);
+            } else {
+                // Error message is already handled by validateTokenAndFetchUser or discordApiCall
+            }
+
+            // Re-enable inputs and button after connection attempt is complete
+            connectBtn.disabled = false;
+            connectBtn.textContent = "Connect & Load Messages"; // Reset button text
+            tokenInput.disabled = false;
+            channelIdInput.disabled = false;
+        });
+
+        // Event listener for the "Send" button.
+        sendBtn.addEventListener('click', () => {
+            const messageText = messageInput.value; // Get message text from input
+            sendMessage(currentChannelId, currentToken, messageText); // Call sendMessage function
+        });
+
+        // Event listener for the message input field to allow sending messages by pressing 'Enter'.
+        messageInput.addEventListener('keypress', (e) => {
+            // Send on 'Enter' key, unless 'Shift' key is also pressed (Shift+Enter is typically for newlines)
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault(); // Prevent default Enter behavior (e.g., form submission or adding a newline in the input)
+                if (!sendBtn.disabled) { // Check if send button is active (i.e., connected)
+                    sendBtn.click(); // Programmatically click the send button
+                }
+            }
+        });
+
+        // Event listener for the "Cancel reply" (×) button.
+        cancelReplyBtn.addEventListener('click', () => {
+            clearReplyContext(); // Clear the reply state and UI
+            messageInput.focus(); // Return focus to the message input field
+        });
+
+
+        // --- INITIALIZATION ---
+        /**
+         * Initializes the application when the DOM is fully loaded.
+         * Sets up the initial UI state (e.g., disabled buttons, hidden elements).
+         */
+        function init() {
+            // Log a startup message and reminder about ToS and security.
+            console.log("Conceptual Discord Manager Initialized. Version 1.0.2 (fully commented)");
+            console.warn("Reminder: Using user tokens for automation is against Discord's Terms of Service and is highly insecure. This tool is for educational/conceptual purposes only and does NOT store your token.");
+
+            // Set initial UI state:
+            sendBtn.disabled = true; // Send button is disabled until a successful connection is made
+            warningDiv.style.display = 'block'; // Ensure the ToS/security warning is visible by default
+            userInfoDiv.style.display = 'none'; // User info section is hidden until connected
+            replyInfoDiv.style.display = 'none'; // Reply context UI is hidden initially
+        }
+
+        // Add an event listener to run the init function once the DOM is fully loaded and parsed.
+        document.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
